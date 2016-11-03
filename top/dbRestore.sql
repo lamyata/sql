@@ -1,0 +1,9 @@
+--restore filelistonly from disk='C:\1\iTos_20160810.BAK'
+
+RESTORE DATABASE [iTosVMG_160810] FROM DISK='C:\1\iTos_20160810.bak' 
+WITH FILE = 1, 
+RECOVERY, REPLACE, STATS = 5,
+MOVE 'iTos' TO 'C:\Program Files\Microsoft SQL Server\MSSQL11.MAIN\MSSQL\DATA\iTosVMG_160810.mdf', 
+MOVE 'iTos_log' TO 'C:\Program Files\Microsoft SQL Server\MSSQL11.MAIN\MSSQL\DATA\iTosVMG_160810_0.ldf'
+
+--RESTORE DATABASE [iTosVMG_160810] WITH RECOVERY

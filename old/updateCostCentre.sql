@@ -1,0 +1,375 @@
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR where c.CODE in ('491000', '493200')
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR where c.CODE = 'SGN'
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+       join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR where c.CODE = 'Ravago'
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR where c.CODE = 'EXP'
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR where c.CODE = 'RPC'
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR where c.CODE = 'CRI'
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR where c.CODE = 'ALBEM'
+
+/*
+For ACV: O-VMROBRASIL
+-   For SGN: O-VMROBRASIL
+-   For Ravago:
+1. if WH Brasil then O-VMROBRASIL
+2. if WH X (same as Expeditors) then O-VMROKAAI1793
+-   For Expeditors: O-VMROKAAI1793
+-   For RPC: O-VMROGENT
+-   For CRI:
+1.      If WH Gent then O-VMROGENT
+2.      If WH Hazop then O-VMROHAZOP
+-   For Albemarle: O-VMROHAZOP
+
+For Ravago and CRI warehouse should be fetched from stock of first operation report.
+
+*/
+
+select * from ORDERS o join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+       join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR where c.CODE = 'Ravago'
+
+declare @OIOPR table (ORDER_ITEM_ID int, OPERATION_REPORT_ID int, LOCATION_ID int, LOC_PLAIN_PATH nvarchar(250))
+insert into @OIOPR 
+select oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'Ravago'
+	 group by oi.ORDER_ITEM_ID
+
+/*
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join DISCHARGING_OPERATION_REPORT dor on oiopr.OPERATION_REPORT_ID = dor.DISCHARGING_OPERATION_REPORT_ID
+join STOCK_INFO si on dor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join LOADING_OPERATION_REPORT lor on oiopr.OPERATION_REPORT_ID = lor.LOADING_OPERATION_REPORT_ID
+join STOCK_INFO si on lor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+*/
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join STOCK_CHANGE_OPERATION_REPORT scor on oiopr.OPERATION_REPORT_ID = scor.STOCK_CHANGE_OPERATION_REPORT_ID
+join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+join STOCK_INFO si on sci.TO_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join VAS_OPERATION_REPORT vor on oiopr.OPERATION_REPORT_ID = vor.VAS_OPERATION_REPORT_ID
+join VAS_ITEM vi on vor.REPORTED_ID = vi.VAS_ITEM_ID
+join VAS_ITEM_TO vit on vi.VAS_ITEM_ID = vit.VAS_ITEM_ID
+join STOCK_INFO si on vor.REPORTED_ID = vit.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+select * from @OIOPR
+
+
+ select * from LOCATION where HIERARCHY_LEVEL = 0
+
+ upd OI set oi.COST_CENT_ID = oiop.VMROBRASIL
+ from @OIOP oiop, ORDER_ITEM oi
+ join oiop.ORDER_ITEM_ID =- OI_ID
+ where oiop.LOCATIPATH like 'BR%'
+ 
+ -- cost centres
+ 
+ declare @OIOPR table (INTERNAL_COMPANY_ID int, ORDER_ITEM_ID int, OPERATION_REPORT_ID int, LOCATION_ID int, LOC_PLAIN_PATH nvarchar(250))
+insert into @OIOPR 
+select o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'Ravago'
+	 group by o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID
+insert into @OIOPR 
+select o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'CRI'
+	 group by o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join DISCHARGING_OPERATION_REPORT dor on oiopr.OPERATION_REPORT_ID = dor.DISCHARGING_OPERATION_REPORT_ID
+join STOCK_INFO si on dor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join LOADING_OPERATION_REPORT lor on oiopr.OPERATION_REPORT_ID = lor.LOADING_OPERATION_REPORT_ID
+join STOCK_INFO si on lor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join STOCK_CHANGE_OPERATION_REPORT scor on oiopr.OPERATION_REPORT_ID = scor.STOCK_CHANGE_OPERATION_REPORT_ID
+join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+join STOCK_INFO si on sci.TO_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join VAS_OPERATION_REPORT vor on oiopr.OPERATION_REPORT_ID = vor.VAS_OPERATION_REPORT_ID
+join VAS_ITEM vi on vor.REPORTED_ID = vi.VAS_ITEM_ID
+join VAS_ITEM_TO vit on vi.VAS_ITEM_ID = vit.VAS_ITEM_ID
+join STOCK_INFO si on vor.REPORTED_ID = vit.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+select o.INTERNAL_COMPANY_ID, 'O-VMROBRASIL' as SHORT_DESCRIPTION from ORDER_ITEM oi, ORDERS o, COMPANY c
+ where oi.ORDER_ID = o.ORDER_ID and o.CUSTOMER_ID = c.COMPANYNR and c.CODE in ('491000', '493200')
+union select o.INTERNAL_COMPANY_ID, 'O-VMROBRASIL' from ORDER_ITEM oi, ORDERS o, COMPANY c
+ where oi.ORDER_ID = o.ORDER_ID and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'SGN'
+union select o.INTERNAL_COMPANY_ID, 'O-VMROKAAI1793' from ORDER_ITEM oi, ORDERS o, COMPANY c
+ where oi.ORDER_ID = o.ORDER_ID and o.CUSTOMER_ID = c.COMPANYNR and c.CODE = 'EXP'
+union select o.INTERNAL_COMPANY_ID, 'O-VMROGENT' from ORDER_ITEM oi, ORDERS o, COMPANY c
+ where oi.ORDER_ID = o.ORDER_ID and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'RPC'
+union select o.INTERNAL_COMPANY_ID, 'O-VMROHAZOP' from ORDER_ITEM oi, ORDERS o, COMPANY c
+ where oi.ORDER_ID = o.ORDER_ID and o.CUSTOMER_ID = c.COMPANYNR and c.CODE = 'ALBEM'
+union select INTERNAL_COMPANY_ID, 'O-VMROBRASIL'
+	from @OIOPR where LOC_PLAIN_PATH like '|BR_|%'
+union select INTERNAL_COMPANY_ID, 'O-VMROKAAI1793'
+	from @OIOPR where LOC_PLAIN_PATH like '|X|%'
+union select INTERNAL_COMPANY_ID, 'O-VMROGENT'
+	from @OIOPR where LOC_PLAIN_PATH like '|G|%'
+union select INTERNAL_COMPANY_ID, 'O-VMROHAZOP'
+	from @OIOPR where LOC_PLAIN_PATH like '|H|%'
+
+select * from NS_COSTCENTRE
+
+-- updates
+
+--insert into NS_COSTCENTRE values (NULL, 'O-VMROBRASIL', 1, 'sys', GETDATE(), 'sys', GETDATE(), 246)
+--insert into NS_COSTCENTRE values (NULL, 'O-VMROKAAI1793', 1, 'sys', GETDATE(), 'sys', GETDATE(), 299)
+select * into bak_order_item from ORDER_ITEM
+
+declare @OIOPR table (INTERNAL_COMPANY_ID int, ORDER_ITEM_ID int, OPERATION_REPORT_ID int, LOCATION_ID int, LOC_PLAIN_PATH nvarchar(250), COMPANY_CODE nvarchar(50))
+
+insert into @OIOPR 
+select o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null, 'Ravago' from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'Ravago'
+	 group by o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID
+
+insert into @OIOPR 
+select o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null, 'CRI' from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'CRI'
+	 group by o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join DISCHARGING_OPERATION_REPORT dor on oiopr.OPERATION_REPORT_ID = dor.DISCHARGING_OPERATION_REPORT_ID
+join STOCK_INFO si on dor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join LOADING_OPERATION_REPORT lor on oiopr.OPERATION_REPORT_ID = lor.LOADING_OPERATION_REPORT_ID
+join STOCK_INFO si on lor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join STOCK_CHANGE_OPERATION_REPORT scor on oiopr.OPERATION_REPORT_ID = scor.STOCK_CHANGE_OPERATION_REPORT_ID
+join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+join STOCK_INFO si on sci.TO_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join VAS_OPERATION_REPORT vor on oiopr.OPERATION_REPORT_ID = vor.VAS_OPERATION_REPORT_ID
+join VAS_ITEM vi on vor.REPORTED_ID = vi.VAS_ITEM_ID
+join VAS_ITEM_TO vit on vi.VAS_ITEM_ID = vit.VAS_ITEM_ID
+join STOCK_INFO si on vor.REPORTED_ID = vit.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+-- ravago
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, ORDER_ITEM oi, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oiopr.COMPANY_CODE = 'Ravago'
+ and oiopr.LOC_PLAIN_PATH like '|BR_|%' and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROBRASIL'
+
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, ORDER_ITEM oi, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oiopr.COMPANY_CODE = 'Ravago'
+ and oiopr.LOC_PLAIN_PATH like '|X|%' and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROKAAI1793'
+
+-- cri
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, ORDER_ITEM oi, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oiopr.COMPANY_CODE = 'CRI'
+ and oiopr.LOC_PLAIN_PATH like '|G|%' and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROGENT'
+
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, ORDER_ITEM oi, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oiopr.COMPANY_CODE = 'CRI'
+ and oiopr.LOC_PLAIN_PATH like '|H|%' and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROHAZOP'
+
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from ORDER_ITEM oi, ORDERS o, COMPANY c, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID and cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and c.CODE in ('491000', '493200')
+ and cs.SHORT_DESCRIPTION = 'O-VMROBRASIL'
+ 
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from ORDER_ITEM oi, ORDERS o, COMPANY c, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID and cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'SGN'
+ and cs.SHORT_DESCRIPTION = 'O-VMROBRASIL'
+
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from ORDER_ITEM oi, ORDERS o, COMPANY c, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID and cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'EXP'
+ and cs.SHORT_DESCRIPTION = 'O-VMROKAAI1793'
+
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from ORDER_ITEM oi, ORDERS o, COMPANY c, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID and cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'RPC'
+ and cs.SHORT_DESCRIPTION = 'O-VMROGENT'
+
+update oi set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from ORDER_ITEM oi, ORDERS o, COMPANY c, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID and cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'ALBEM'
+ and cs.SHORT_DESCRIPTION = 'O-VMROHAZOP'
+
+--- script to show all OIs that were not modified ---
+declare @OIOPR table (INTERNAL_COMPANY_ID int, ORDER_ITEM_ID int, OPERATION_REPORT_ID int, LOCATION_ID int, LOC_PLAIN_PATH nvarchar(250))
+
+insert into @OIOPR 
+select o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'Ravago'
+	 group by o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID
+
+insert into @OIOPR 
+select o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID, min(opr.OPERATION_REPORT_ID), null, null from ORDER_ITEM oi join ORDERS o on oi.ORDER_ID = o.ORDER_ID
+	 join COMPANY c on o.CUSTOMER_ID = c.COMPANYNR 
+     join COMPANY_APPLICATION_ROLE car on c.COMPANYNR = car.COMPANYNR
+	 join OPERATION_REPORT opr on oi.ORDER_ITEM_ID = opr.ORDER_ITEM_ID
+	 where c.CODE = 'CRI'
+	 group by o.INTERNAL_COMPANY_ID, oi.ORDER_ITEM_ID
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join DISCHARGING_OPERATION_REPORT dor on oiopr.OPERATION_REPORT_ID = dor.DISCHARGING_OPERATION_REPORT_ID
+join STOCK_INFO si on dor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join LOADING_OPERATION_REPORT lor on oiopr.OPERATION_REPORT_ID = lor.LOADING_OPERATION_REPORT_ID
+join STOCK_INFO si on lor.REPORTED_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join STOCK_CHANGE_OPERATION_REPORT scor on oiopr.OPERATION_REPORT_ID = scor.STOCK_CHANGE_OPERATION_REPORT_ID
+join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+join STOCK_INFO si on sci.TO_ID = si.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+update oiopr set LOCATION_ID = l.LOCATION_ID, LOC_PLAIN_PATH = l.PLAIN_PATH
+from @OIOPR oiopr join VAS_OPERATION_REPORT vor on oiopr.OPERATION_REPORT_ID = vor.VAS_OPERATION_REPORT_ID
+join VAS_ITEM vi on vor.REPORTED_ID = vi.VAS_ITEM_ID
+join VAS_ITEM_TO vit on vi.VAS_ITEM_ID = vit.VAS_ITEM_ID
+join STOCK_INFO si on vor.REPORTED_ID = vit.STOCK_INFO_ID
+join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+join [LOCATION] l on sic.LOCATION_ID = l.LOCATION_ID 
+where oiopr.LOCATION_ID is null
+
+-- ravago
+select oi.EXTERNAL_ID --set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, bak_order_item oi --, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oi.COST_CENTRE_ID is not null
+ and oiopr.LOC_PLAIN_PATH like '|BR_|%' --and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR -- and cs.SHORT_DESCRIPTION = 'O-VMROBRASIL'
+
+union
+
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, bak_order_item oi --, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oi.COST_CENTRE_ID is not null
+ and oiopr.LOC_PLAIN_PATH like '|X|%' -- and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROKAAI1793'
+
+union
+-- cri
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, bak_order_item oi --, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oi.COST_CENTRE_ID is not null
+ and oiopr.LOC_PLAIN_PATH like '|G|%' -- and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROGENT'
+
+union
+
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from @OIOPR oiopr, ORDER_ITEM oi, NS_COSTCENTRE cs
+ where oiopr.ORDER_ITEM_ID = oi.ORDER_ITEM_ID and oi.COST_CENTRE_ID is not null
+ and oiopr.LOC_PLAIN_PATH like '|H|%' -- and oiopr.INTERNAL_COMPANY_ID = cs.INTERNAL_COMPANY_NR and cs.SHORT_DESCRIPTION = 'O-VMROHAZOP'
+
+union
+
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from bak_order_item oi, ORDERS o, COMPANY c --, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID --and cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and c.CODE in ('491000', '493200')
+ -- and cs.SHORT_DESCRIPTION = 'O-VMROBRASIL' 
+ and oi.COST_CENTRE_ID is not null
+
+union
+ 
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from bak_order_item oi, ORDERS o, COMPANY c --, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID -- and -- cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'SGN'
+ -- and cs.SHORT_DESCRIPTION = 'O-VMROBRASIL'
+  and oi.COST_CENTRE_ID is not null
+
+union
+
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from bak_order_item oi, ORDERS o, COMPANY c --, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID -- and -- cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'EXP'
+ -- and cs.SHORT_DESCRIPTION = 'O-VMROKAAI1793'
+  and oi.COST_CENTRE_ID is not null
+
+union
+
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from bak_order_item oi, ORDERS o, COMPANY c --, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID -- and -- cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'RPC'
+ -- and cs.SHORT_DESCRIPTION = 'O-VMROGENT'
+  and oi.COST_CENTRE_ID is not null
+
+union
+
+select oi.EXTERNAL_ID -- set oi.COST_CENTRE_ID = cs.COSTCENTRE_ID
+ from bak_order_item oi, ORDERS o, COMPANY c --, NS_COSTCENTRE cs
+ where oi.ORDER_ID = o.ORDER_ID -- and -- cs.INTERNAL_COMPANY_NR = o.INTERNAL_COMPANY_ID
+ and o.CUSTOMER_ID = c.COMPANYNR and  c.CODE = 'ALBEM'
+ -- and cs.SHORT_DESCRIPTION = 'O-VMROHAZOP'
+  and oi.COST_CENTRE_ID is not null

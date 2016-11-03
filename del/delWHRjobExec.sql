@@ -1,0 +1,12 @@
+select * from LOCATION_FINANCIAL_LINE where FINANCIAL_LINE_ID in (10857)
+select * from ORDER_ITEM_FINANCIAL_LINE where FINANCIAL_LINE_ID in (10857)
+
+--insert into ORDER_ITEM_FINANCIAL_LINE values (7006, 10857)
+--delete from LOCATION_FINANCIAL_LINE where FINANCIAL_LINE_ID in (10857)
+
+declare @jobExecutionId int = 192
+--select * from SERVICE_JOB_EXECUTION_PAR where SERVICE_JOB_EXECUTION_ID = @jobExecutionId
+--select * from SERVICE_JOB_EXECUTION where SERVICE_JOB_EXECUTION_ID = @jobExecutionId
+
+delete from SERVICE_JOB_EXECUTION_PAR where SERVICE_JOB_EXECUTION_ID = @jobExecutionId
+delete from SERVICE_JOB_EXECUTION where SERVICE_JOB_EXECUTION_ID = @jobExecutionId
