@@ -1,0 +1,401 @@
+SQL Server: Difference between PARTITION BY and GROUP BY
+
+ see also expl in wpedia
+
+ROW_NUMBER() window function
+
+ROW_NUMBER() OVER may be used for a simple table on the returned rows, e.g. to return no more than ten rows:
+
+SELECT * FROM
+( SELECT
+ROW_NUMBER() OVER (ORDER BY sort_key ASC) AS row_number,
+columns
+FROM tablename
+) AS foo
+WHERE row_number <= 11
+
+ROW_NUMBER can be non-deterministic: if sort_key is not unique, each time you run the query it is possible to get different row numbers assigned to any rows where sort_key is the same. When sort_key is unique, each row will always get a unique row number.
+RANK() window function
+
+The RANK() OVER window function acts like ROW_NUMBER, but may return more than n rows in case of tie conditions, e.g. to return the top-10 youngest persons:
+
+SELECT * FROM (
+SELECT
+RANK() OVER (ORDER BY age ASC) AS ranking,
+person_id,
+person_name,
+age
+FROM person
+)AS foo
+WHERE ranking <= 10
+
+The above code could return more than ten rows, e.g. if there are two people of the same age, it could return eleven rows.
+
+---
+JournalDaoNhibernate.cs
+InternalCompany internalCompany = null;
+query.JoinAlias(x => x.InternalCompany, () => internalCompany, JoinType.LeftOuterJoin);
+---
+Find Current Location of Data and Log File of All the Database
+
+SELECT name, physical_name AS current_file_location
+FROM sys.master_files 
+---
+Delete all stocks from inventory
+delete s from STOCK s join STOCK_INFO si on s.STOCK_INFO_ID = si.STOCK_INFO_ID
+	join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+	and sic.PRODUCT_ID not in (select distinct PRODUCT_ID from STOCK_INFO_CONFIG where UPDATE_TIMESTAMP > GETDATE() - 37.8)
+	
+**********************************************
+select top 50 * from HTTP_LOG_ITEM where URI = 'https://itos-api.vanmoergroup.com/api/Delivery' and STATUS_CODE  > 400 order by 1 desc
+select * from ELMAH_Error where TimeUtc between '2016-06-29 11:20' and '2016-06-29 11:30' -- 2016-06-29 13:26:19.0000000
+
+ACV
+Inbound and Outbound operations user must log in with transport ref
+After logging in HH transport is getting in 'InProc'
+
+1. Inbound
+2. Set Location
+
+ACV uses 3 types of barcodes
+
+Type1. ArticleSerial - uses serial nrs, can be 22, 23, 25, 26, 28, 30 or
+31 chars long
+Example: 21 A056272 91 00624301 92 2016
+Three parts of this barcode are: sn, prod code (8 chars), prod yr
+After scan barcode is parsed and stored in SIDs: Barcode, SerialNo, ProdYear
+
+Type2. Article e.g. one wafer, length: 8 chars
+ex: 12345678
+
+Type3. Packaging - stock is in pallet
+length: 20 chars (has 3 parts)
+ex: 0123456789 00001 00003
+These parts are also in sids Pack Unit, Pack Seq and Pack Total
+Pack Unit - razgranichava edin palet ot drug
+
+Inbound can scan all 3 types of barcodes
+
+Props InboundScanMode and ... determine how many reps will be
+created
+
+Type 3 scanning creates 3 rpts open one rpt is InProce
+
+Finish btn - check scanned qties - complete transp -
+closes all reps for transport - acv confirm msg sent
+
+---
+outbound loading : palletize false
+create one LOI + goods
+scanning finds or creates reps
+unexpected rep is only type 1
+HH will delete open reps on close
+
+---
+Outbound loading pred -> stock change
+MUST PRINT PALLET LABEL of SCOI first
+1. stock change is first worked on
+enter HH with deliveryNote ref
+can only scan Type1 or Type2
+we create Type3 stock here
+initially all scanning goes to pallet1
+user can click 'Next' scannings goe to 2nd pallet
+on scanning Pack Unit and Pack Seq are set
+Pack Total is completed on finish
+
+---
+Shiting: barcode is type1 or type2
+SCOR in process compl.close
+Note: to see this reps in Oper Report Overview there is
+	a check box 'Show HH Shiftings' and then they will
+	be included, they may be too many
+When scan Type 2 user is asked for qty and old location
+Type 2 may create more than 1 reps
+
+SGN
+/SgnShipment only discharging order
+must have sids LOT, PalletId, Rolls
+Pallet Id is saved in SID LOTNo, then part of this sid is saved in LOT of sic
+
+Pallets are scanned
+
+outbound -> oi + goods for products (product, owner, base qty)
+
+PalletIds are scanned
+LoadingFIFOCheckerEnabled !
+
+When completed loading in T props are added
+-? transporshipNr, transpCommercialInvNr
+to get this in OI ref ShipTo -> External Remarks
+
+
+update LOADING_OPERATION_REPORT set INVENTORY_STATUS = 2, STOCK_INVENTORY_REQUEST_ID = 439674  where LOADING_OPERATION_REPORT_ID in (641495)
+update DISCHARGING_OPERATION_REPORT set INVENTORY_STATUS = 2, STOCK_INVENTORY_REQUEST_ID = 438365  where DISCHARGING_OPERATION_REPORT_ID in (616020)
+update TARIFF_INFO set UNIT_ID = 2, MEASUREMENT_UNIT_ID = 2 where TARIFF_INFO_ID = 9222
+----------------------
+
+--update OPERATION_REPORT set STATUS = STATUS - 1 where ORDER_ITEM_ID in (26311)
+--select * from (
+--select LOADING_OPERATION_REPORT_ID as RPT_ID, 'Loading' as [TYPE], REPORTED_ID, TRANSPORT_ID, INVENTORY_STATUS, STOCK_INVENTORY_REQUEST_ID from LOADING_OPERATION_REPORT lor
+--union select DISCHARGING_OPERATION_REPORT_ID, 'Discharging', REPORTED_ID, TRANSPORT_ID, INVENTORY_STATUS, STOCK_INVENTORY_REQUEST_ID from DISCHARGING_OPERATION_REPORT dor
+--union select VAS_OPERATION_REPORT_ID, 'VAS', vif.STOCK_INFO_ID, '', INVENTORY_STATUS, STOCK_INVENTORY_REQUEST_ID from VAS_OPERATION_REPORT vor join VAS_ITEM_FROM vif on vif.VAS_ITEM_ID = vor.REPORTED_ID
+--union select STOCK_CHANGE_OPERATION_REPORT_ID, 'Stock-change', sci.FROM_ID, '', INVENTORY_STATUS, STOCK_INVENTORY_REQUEST_ID from STOCK_CHANGE_OPERATION_REPORT scor join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+--) as rpt join OPERATION_REPORT r on rpt.RPT_ID = r.OPERATION_REPORT_ID
+--where r.ORDER_ITEM_ID in (19)
+--select r.CONTEXT_ID, op.CONTEXT_ID from OPERATION_REPORT r join OPERATION_PLAN op on r.PLAN_ID = op.OPERATION_PLAN_ID where r.CONTEXT_ID != op.CONTEXT_ID
+--select * from OPERATION_PLAN
+
+--select ORDER_ITEM_ID, count(*) from OPERATION_REPORT group by ORDER_ITEM_ID having count(*) > 9
+
+
+begin tran
+declare @OrderItemId int = 20
+
+declare @deletedIds table (
+ OPERATION_REPORT_ID int,
+ OPERATION_PLAN_ID int,
+ OPERATION_CONTEXT_ID int,
+ TARIFF_INFO_ID int,
+ STOCK_INFO_ID int, 
+ STOCK_INFO_ID2 int,
+ STOCK_INFO_ID3 int,
+ STOCK_INFO_QUANTITY_ID int
+);
+
+insert into @deletedIds (OPERATION_REPORT_ID, OPERATION_PLAN_ID, OPERATION_CONTEXT_ID, TARIFF_INFO_ID)
+	select OPERATION_REPORT_ID, PLAN_ID, CONTEXT_ID, TARIFF_INFO_ID from OPERATION_REPORT
+	where ORDER_ITEM_ID = @OrderItemId
+
+delete lor
+	output deleted.REPORTED_ID into @deletedIds(STOCK_INFO_ID)
+	from LOADING_OPERATION_REPORT lor join @deletedIds d on lor.LOADING_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+delete dor
+	output deleted.REPORTED_ID into @deletedIds(STOCK_INFO_ID)
+	from DISCHARGING_OPERATION_REPORT dor join @deletedIds d on dor.DISCHARGING_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+insert into @deletedIds (STOCK_INFO_ID) select vif.STOCK_INFO_ID from VAS_OPERATION_REPORT vor join VAS_ITEM_FROM vif on vor.REPORTED_ID = vif.VAS_ITEM_ID join @deletedIds d on vor.VAS_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+insert into @deletedIds (STOCK_INFO_ID) select vit.STOCK_INFO_ID from VAS_OPERATION_REPORT vor join VAS_ITEM_TO vit on vor.REPORTED_ID = vit.VAS_ITEM_ID join @deletedIds d on vor.VAS_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+delete vor from VAS_OPERATION_REPORT vor join @deletedIds d on vor.VAS_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+insert into @deletedIds (STOCK_INFO_ID, STOCK_INFO_ID2) select sci.FROM_ID, sci.TO_ID from STOCK_CHANGE_OPERATION_REPORT scor join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID join @deletedIds d on scor.STOCK_CHANGE_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+delete sor from STOCK_CHANGE_OPERATION_REPORT sor join @deletedIds d on sor.STOCK_CHANGE_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+delete r from OPERATION_REPORT r join @deletedIds d on r.OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+delete ti from TARIFF_INFO ti join @deletedIds d on ti.TARIFF_INFO_ID = d.TARIFF_INFO_ID
+
+print 'del plans'
+insert into @deletedIds (STOCK_INFO_ID) select vif.STOCK_INFO_ID from VAS_OPERATION_PLAN vop join VAS_ITEM_FROM vif on vif.VAS_ITEM_ID in (vop.PLANNED_ID, vop.PENDING_ID, vop.REMAINING_ID) join @deletedIds d on vop.VAS_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+insert into @deletedIds (STOCK_INFO_ID) select vit.STOCK_INFO_ID from VAS_OPERATION_PLAN vop join VAS_ITEM_TO vit on vit.VAS_ITEM_ID in (vop.PLANNED_ID, vop.PENDING_ID, vop.REMAINING_ID) join @deletedIds d on vop.VAS_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+insert into @deletedIds (STOCK_INFO_ID, STOCK_INFO_ID2, STOCK_INFO_ID3) select lop.PLANNED_ID, lop.PENDING_ID, lop.REMAINING_ID from LOADING_OPERATION_PLAN lop join @deletedIds d on lop.LOADING_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+insert into @deletedIds (STOCK_INFO_ID, STOCK_INFO_ID2, STOCK_INFO_ID3) select dop.PLANNED_ID, dop.PENDING_ID, dop.REMAINING_ID from DISCHARGING_OPERATION_PLAN dop join @deletedIds d on dop.DISCHARGING_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+insert into @deletedIds (STOCK_INFO_ID, STOCK_INFO_ID2) select sci.FROM_ID, sci.TO_ID from STOCK_CHANGE_OPERATION_PLAN scop join STOCK_CHANGE_ITEM sci on sci.STOCK_CHANGE_ITEM_ID in (scop.PLANNED_ID, scop.PENDING_ID, scop.REMAINING_ID) join @deletedIds d on scop.STOCK_CHANGE_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+delete lop from LOADING_OPERATION_PLAN lop join @deletedIds d on lop.LOADING_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+delete dop from DISCHARGING_OPERATION_PLAN dop join @deletedIds d on dop.DISCHARGING_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+delete vop from VAS_OPERATION_PLAN vop join @deletedIds d on vop.VAS_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+delete sop from STOCK_CHANGE_OPERATION_PLAN sop join @deletedIds d on sop.STOCK_CHANGE_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+delete op
+	output deleted.OPERATION_PLAN_ID, deleted.CONTEXT_ID into @deletedIds(OPERATION_PLAN_ID, OPERATION_CONTEXT_ID)
+	from OPERATION_PLAN op join @deletedIds d on op.OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+
+delete oc from OPERATION_CONTEXT oc join @deletedIds d on oc.OPERATION_CONTEXT_ID = d.OPERATION_CONTEXT_ID
+
+--declare @StockInfoIds table (ID int, ID2 int, ID3 int)
+--insert into @StockInfoIds (ID) select REPORTED_ID from LOADING_OPERATION_REPORT lor join @deletedIds d on lor.LOADING_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+--insert into @StockInfoIds (ID) select REPORTED_ID from DISCHARGING_OPERATION_REPORT dor join @deletedIds d on dor.DISCHARGING_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+--insert into @StockInfoIds (ID) select vif.STOCK_INFO_ID from VAS_OPERATION_REPORT vor join VAS_ITEM_FROM vif on vif.VAS_ITEM_ID = vor.REPORTED_ID join @deletedIds d on vor.VAS_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+--insert into @StockInfoIds (ID) select vit.STOCK_INFO_ID from VAS_OPERATION_REPORT vor join VAS_ITEM_TO vit on vit.VAS_ITEM_ID = vor.REPORTED_ID join @deletedIds d on vor.VAS_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+--insert into @StockInfoIds (ID, ID2) select sci.FROM_ID, sci.TO_ID from STOCK_CHANGE_OPERATION_REPORT scor join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID join @deletedIds d on scor.STOCK_CHANGE_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID
+--insert into @StockInfoIds (ID) select sci.TO_ID from STOCK_CHANGE_OPERATION_REPORT scor join @deletedIds d on scor.STOCK_CHANGE_OPERATION_REPORT_ID = d.OPERATION_REPORT_ID join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+
+--insert into @StockInfoIds (ID) select vif.STOCK_INFO_ID from VAS_OPERATION_PLAN vop join VAS_ITEM_FROM vif on vif.VAS_ITEM_ID in (vop.PLANNED_ID, vop.PENDING_ID, vop.REMAINING_ID) join @deletedIds d on vop.VAS_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+--insert into @StockInfoIds (ID) select vit.STOCK_INFO_ID from VAS_OPERATION_PLAN vop join VAS_ITEM_TO vit on vit.VAS_ITEM_ID in (vop.PLANNED_ID, vop.PENDING_ID, vop.REMAINING_ID) join @deletedIds d on vop.VAS_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+--insert into @StockInfoIds (ID, ID2, ID3) select lop.PLANNED_ID, lop.PENDING_ID, lop.REMAINING_ID from LOADING_OPERATION_PLAN lop join @deletedIds d on lop.LOADING_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+--insert into @StockInfoIds (ID, ID2, ID3) select dop.PLANNED_ID, dop.PENDING_ID, dop.REMAINING_ID from DISCHARGING_OPERATION_PLAN dop join @deletedIds d on dop.DISCHARGING_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+--insert into @StockInfoIds (ID, ID2) select sci.FROM_ID, sci.TO_ID from STOCK_CHANGE_OPERATION_PLAN scop join STOCK_CHANGE_ITEM sci on sci.STOCK_CHANGE_ITEM_ID in (scop.PLANNED_ID, scop.PENDING_ID, scop.REMAINING_ID) join @deletedIds d on scop.STOCK_CHANGE_OPERATION_PLAN_ID = d.OPERATION_PLAN_ID
+
+--select * from @deletedIds
+
+insert into @deletedIds (STOCK_INFO_QUANTITY_ID) select BASE_QUANTITY_ID from STOCK_INFO si where si.STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+insert into @deletedIds (STOCK_INFO_QUANTITY_ID) select STORAGE_QUANTITY_ID from STOCK_INFO si where si.STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+insert into @deletedIds (STOCK_INFO_QUANTITY_ID) select STOCK_INFO_QUANTITY_ID from STOCK_INFO_EXTRA_QUANTITY where STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+print 'del stock'
+
+delete sis from STOCK_INFO_SID sis join STOCK_INFO si on sis.STOCK_INFO_CONFIG_ID = sis.STOCK_INFO_CONFIG_ID
+	where si.STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+
+delete siceu from STOCK_INFO_CONFIG_EXTRA_UNIT siceu join STOCK_INFO si on siceu.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID
+	where si.STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+
+delete sic from STOCK_INFO_CONFIG sic join STOCK_INFO si on sic.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID
+	where si.STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+
+delete sieq from STOCK_INFO_EXTRA_QUANTITY sieq join STOCK_INFO si on sieq.STOCK_INFO_ID = si.STOCK_INFO_ID
+	where si.STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+
+delete from STOCK_INFO where STOCK_INFO_ID in (select STOCK_INFO_ID from @deletedIds union select STOCK_INFO_ID2 from @deletedIds union select STOCK_INFO_ID3 from @deletedIds)
+
+delete siq from STOCK_INFO_QUANTITY siq join  @deletedIds d on siq.STOCK_INFO_QUANTITY_ID = d.STOCK_INFO_QUANTITY_ID
+
+rollback
+
+------------------------------
+C:\proj\iTOS\iTOS VMG\Main\iTos.WebApp\Scripts\Views\Stevedoring\OrderConfirmation.js
+OrderConfirmation.prototype._initOverviewFilter = function() {
+
+    var that = this;
+    var curDate = new Date();
+    var fromDate = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate() - 14),
+        toDate = new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate()),
+        deferred = Q.defer();
+
+...
+OrderConfirmation.prototype._getPrintReportInputData = function () {
+    var filter = this._getFilter();
+    console.log('pa sming');
+    console.log(filter);
+    return filter;
+};
+OrderConfirmation.prototype._getDateDate1 = function () {
+    var filter = this._getFilter();
+    console.log('pa sming');
+    console.log(filter);
+    return filter;
+};
+
+OrderConfirmation.prototype._getDateDate = function (date) {
+    return new Date(curDate.getFullYear(), curDate.getMonth(), curDate.getDate());
+};
+
+
+--------------------------------------------------------------------
+--declare @ReportedIds table (ReportedId int)
+--insert into @ReportedIds select REPORTED_ID	from LOADING_OPERATION_REPORT lor join OPERATION_REPORT r on lor.LOADING_OPERATION_REPORT_ID = r.OPERATION_REPORT_ID and r.ORDER_ITEM_ID = @OrderItemId
+--insert into @ReportedIds select REPORTED_ID from DISCHARGING_OPERATION_REPORT dor join OPERATION_REPORT r on dor.DISCHARGING_OPERATION_REPORT_ID = r.OPERATION_REPORT_ID and r.ORDER_ITEM_ID = @OrderItemId
+--insert into @ReportedIds select vif.STOCK_INFO_ID from VAS_OPERATION_REPORT vor join OPERATION_REPORT r on vor.VAS_OPERATION_REPORT_ID = r.OPERATION_REPORT_ID and r.ORDER_ITEM_ID = @OrderItemId
+--	join VAS_ITEM_FROM vif on vif.VAS_ITEM_ID = vor.REPORTED_ID
+--insert into @ReportedIds select vit.STOCK_INFO_ID from VAS_OPERATION_REPORT vor join OPERATION_REPORT r on vor.VAS_OPERATION_REPORT_ID = r.OPERATION_REPORT_ID and r.ORDER_ITEM_ID = @OrderItemId
+--	join VAS_ITEM_TO vit on vit.VAS_ITEM_ID = vor.REPORTED_ID
+--insert into @ReportedIds select sci.FROM_ID from STOCK_CHANGE_OPERATION_REPORT scor join OPERATION_REPORT r on scor.STOCK_CHANGE_OPERATION_REPORT_ID = r.OPERATION_REPORT_ID and r.ORDER_ITEM_ID = @OrderItemId
+--	join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+--union
+--select sci.TO_ID from STOCK_CHANGE_OPERATION_REPORT scor
+--	join OPERATION_REPORT r on scor.STOCK_CHANGE_OPERATION_REPORT_ID = r.OPERATION_REPORT_ID and r.ORDER_ITEM_ID = @OrderItemId
+--	join STOCK_CHANGE_ITEM sci on scor.REPORTED_ID = sci.STOCK_CHANGE_ITEM_ID
+
+
+---------------------------------------------------------------------
+
+(0 row(s) affected)
+
+	var srPaletteGoods = (SubReport)ReportDocument.Items.Find("srPaletteGoods", true)[0];
+	var srPaletteGoodsSource = (InstanceReportSource)srPaletteGoods.ReportSource;
+	((Report)srPaletteGoodsSource.ReportDocument).DataSource = (DataTable)DataSet.PaletteGoods;
+
+ VLF160714/800 - 160754
+ 800	2	1	2016-07-29 00:00:00.0000000	2016-08-28 00:00:00.0000000	1	160714	1	0	1	55.20	55.20	1.000000	48	48	NULL	2016-08-09 00:00:00.0000000	KAL	2016-08-09 17:46:12.0000000	KAL	2016-08-09 17:46:19.0400000	0	160714	NULL
+ 843	11	1	2016-07-22 00:00:00.0000000	2016-08-21 00:00:00.0000000	1	160755	1	0	1	324.25	324.25	1.000000	48	48	NULL	2016-08-16 00:00:00.0000000	KAL	2016-08-16 13:13:20.0000000	KAL	2016-08-16 13:13:46.9100000	0	160755	NULL
+ 865	2	1	2016-08-04 00:00:00.0000000	2016-09-03 00:00:00.0000000	1	160775	1	0	1	91.98	91.98	1.000000	48	48	NULL	2016-08-19 00:00:00.0000000	KAL	2016-08-19 10:26:37.0000000	KAL	2016-08-19 10:26:40.2900000	0	160775	NULL
+ 890	2	1	2016-08-04 00:00:00.0000000	2016-09-03 00:00:00.0000000	1	160800	1	0	1	80.00	80.00	1.000000	48	48	NULL	2016-08-19 00:00:00.0000000	KAL	2016-08-19 12:15:15.0000000	KAL	2016-08-19 12:15:19.1000000	0	160800	NULL
+ 863	20	1	2016-08-11 00:00:00.0000000	2016-09-10 00:00:00.0000000	1	160774	1	0	1	2989.92	2989.92	1.000000	48	48	NULL	2016-08-18 00:00:00.0000000	KAL	2016-08-18 18:05:56.0000000	KAL	2016-08-18 18:08:17.6900000	0	160774	NULL
+ 916	2	1	2016-08-16 00:00:00.0000000	2016-09-15 00:00:00.0000000	1	160824	1	0	1	1062.80	1062.80	1.000000	48	48	NULL	2016-08-23 00:00:00.0000000	KAL	2016-08-23 14:51:09.0000000	KAL	2016-08-23 14:51:24.7000000	0	160824	NULL
+ 916	2	1	2016-08-16 00:00:00.0000000	2016-09-15 00:00:00.0000000	1	160824	1	0	1	1077.80	1077.80	1.000000	48	48	NULL	2016-08-26 00:00:00.0000000	KAL	2016-08-23 14:51:09.0000000	iTos	2016-08-26 14:18:25.9400000	0	160824	NULL
+1023	31	1	2016-08-31 00:00:00.0000000	2016-09-30 00:00:00.0000000	1	160926	1	0	1	8205.60	8205.60	1.000000	48	48	NULL	2016-09-02 00:00:00.0000000	KAL	2016-09-02 16:59:29.0000000	KAL	2016-09-02 16:59:49.9400000	0	160926	NULL
+ 916	2	1	2016-08-16 00:00:00.0000000	2016-09-15 00:00:00.0000000	1	160824	1	0	1	1092.80	1092.80	1.000000	48	48	NULL	2016-09-09 00:00:00.0000000	KAL	2016-08-23 14:51:09.0000000	iTos	2016-09-09 08:32:10.3700000	0	160824	NULL
+1108	20	1	2016-09-09 00:00:00.0000000	2016-10-09 00:00:00.0000000	1	161008	1	0	1	14250.00	14250.00	1.000000	48	48	NULL	2016-09-27 00:00:00.0000000	KAL	2016-09-27 08:50:51.0000000	KAL	2016-09-27 08:51:03.1400000	0	161008	NULL
+1136	11	1	2016-09-28 00:00:00.0000000	2016-10-28 00:00:00.0000000	1	161036	1	0	1	678.40	678.40	1.000000	48	48	NULL	2016-09-28 00:00:00.0000000	KAL	2016-09-28 11:44:54.0000000	KAL	2016-09-28 11:44:58.7600000	0	161036	NULL
+1146	2	1	2016-09-28 00:00:00.0000000	2016-10-28 00:00:00.0000000	1	161046	1	0	1	4146.63	4146.63	1.000000	48	48	NULL	2016-09-29 00:00:00.0000000	KAL	2016-09-29 14:49:46.0000000	KAL	2016-09-29 14:49:50.0700000	0	161046	NULL
+1052	2	1	2016-09-07 00:00:00.0000000	2016-10-07 00:00:00.0000000	1	160955	1	0	1	1540.84	1540.84	1.000000	48	48	NULL	2016-09-20 00:00:00.0000000	KAL	2016-09-20 18:04:26.0000000	KAL	2016-09-20 18:04:31.0500000	0	160955	NULL
+1140	2	1	2016-09-28 00:00:00.0000000	2016-10-28 00:00:00.0000000	1	161040	1	0	1	115.20	115.20	1.000000	48	48	NULL	2016-09-29 00:00:00.0000000	KAL	2016-09-29 14:20:46.0000000	KAL	2016-09-29 14:20:50.0900000	0	161040	NULL
+1165	2	1	2016-09-27 00:00:00.0000000	2016-10-27 00:00:00.0000000	1	161065	1	0	1	553.00	553.00	1.000000	48	48	NULL	2016-10-03 00:00:00.0000000	KAL	2016-10-03 12:45:22.0000000	KAL	2016-10-03 12:45:25.2900000	0	161065	NULL
+1174	11	1	2016-09-30 00:00:00.0000000	2016-10-30 00:00:00.0000000	1	161074	1	0	1	1116.17	1116.17	1.000000	48	48	NULL	2016-10-03 00:00:00.0000000	KAL	2016-10-03 18:13:50.0000000	KAL	2016-10-03 18:13:54.9200000	0	161074	NULL
+1035	11	1	2016-09-01 00:00:00.0000000	2016-10-01 00:00:00.0000000	1	160938	1	0	1	1048.78	1048.78	1.000000	48	48	NULL	2016-09-20 00:00:00.0000000	KAL	2016-09-20 12:25:02.0000000	KAL	2016-09-20 12:26:16.4100000	0	160938	NULL
+1036	11	1	2016-09-01 00:00:00.0000000	2016-10-01 00:00:00.0000000	1	160939	1	0	1	860.50	860.50	1.000000	48	48	NULL	2016-09-20 00:00:00.0000000	KAL	2016-09-20 12:33:54.0000000	KAL	2016-09-20 12:35:21.4600000	0	160939	NULL
+1119	2	1	2016-09-27 00:00:00.0000000	2016-10-27 00:00:00.0000000	1	161019	1	0	1	4236.60	4236.60	1.000000	48	48	NULL	2016-09-27 00:00:00.0000000	KAL	2016-09-27 13:31:47.0000000	KAL	2016-09-27 13:31:53.2200000	0	161019	NULL
+1129	2	1	2016-09-26 00:00:00.0000000	2016-10-26 00:00:00.0000000	1	161029	1	0	1	7106.00	7106.00	1.000000	48	48	NULL	2016-09-27 00:00:00.0000000	KAL	2016-09-27 17:50:33.0000000	KAL	2016-09-27 17:50:36.5800000	0	161029	NULL
+1149	2	1	2016-09-29 00:00:00.0000000	2016-10-29 00:00:00.0000000	1	161049	1	0	1	7106.00	7106.00	1.000000	48	48	NULL	2016-09-29 00:00:00.0000000	KAL	2016-09-29 15:56:42.0000000	KAL	2016-09-29 15:56:48.2800000	0	161049	NULL
+1212	2	1	2016-10-12 00:00:00.0000000	2016-11-11 00:00:00.0000000	1	161109	1	0	1	-105.20	-105.20	1.000000	48	48	NULL	2016-10-12 00:00:00.0000000	KAL	2016-10-12 08:33:51.0000000	KAL	2016-10-12 08:36:13.4200000	0	161109	NULL
+1264	11	1	2016-10-24 00:00:00.0000000	2016-11-23 00:00:00.0000000	1	161161	1	0	1	1800.00	1800.00	1.000000	48	48	NULL	2016-10-24 00:00:00.0000000	KAL	2016-10-24 17:22:59.0000000	KAL	2016-10-24 17:23:03.4900000	0	161161	NULL
+1268	20	1	2016-10-26 00:00:00.0000000	2016-11-25 00:00:00.0000000	1	161165	1	0	1	480.00	480.00	1.000000	48	48	NULL	2016-10-26 00:00:00.0000000	KAL	2016-10-26 14:44:04.0000000	KAL	2016-10-26 14:44:08.1800000	0	161165	NULL
+1181	11	1	2016-09-30 00:00:00.0000000	2016-10-30 00:00:00.0000000	1	160938	1	0	1	1374.06	1374.06	1.000000	48	48	NULL	2016-10-06 00:00:00.0000000	KAL	2016-10-05 18:15:52.0000000	iTos	2016-10-06 16:35:10.9200000	0	160938	NULL
+1182	11	1	2016-09-30 00:00:00.0000000	2016-10-30 00:00:00.0000000	1	160939	1	0	1	1198.55	1198.55	1.000000	48	48	NULL	2016-10-06 00:00:00.0000000	KAL	2016-10-05 18:18:01.0000000	iTos	2016-10-06 16:35:21.9800000	0	160939	NULL
+1183	11	1	2016-09-30 00:00:00.0000000	2016-10-30 00:00:00.0000000	1	161080	1	0	1	2390.65	2390.65	1.000000	48	48	NULL	2016-10-05 00:00:00.0000000	KAL	2016-10-05 18:33:29.0000000	KAL	2016-10-05 18:34:36.3500000	0	161080	NULL
+
+28034	80099545	8	5	2016-10-17 15:50:00.0000000	2016-10-18 16:51:37.0000000	2016-10-14 18:36:33.0000000	2016-10-14 20:03:17.0000000	ELFI	2016-10-13 14:31:07.0000000	ELFI	2016-10-18 16:51:37.8500000	2016-10-17 00:00:00.0000000	NULL	56-BGP-9 // OJ-20-RT	NULL	NULL	299	DE RIJKE // 17-10-2016 // 15u50 - 16u40	CHFF HEEFT TIMESLOT GEMIST. CSR HEEFT NIEUW TIMESLOT VASTGELEGD OM 16u00. CHFF HEEFT VERTRAGING OPGELOPEN DMV DRUK WACHTTIJDEN OP LOSPLAATS, DRUK VERKEER.	1	7
+28034	80099545	8	5	2016-10-17 15:50:00.0000000	2016-10-18 16:51:37.0000000	2016-10-14 18:36:33.0000000	2016-10-14 20:03:17.0000000	ELFI	2016-10-13 14:31:07.0000000	ELFI	2016-10-18 16:51:37.8500000	2016-10-17 00:00:00.0000000	NULL	56-BGP-9 // OJ-20-RT	NULL	NULL	299	DE RIJKE // 17-10-2016 // 15u50 - 16u40	CHFF HEEFT TIMESLOT GEMIST. CSR HEEFT NIEUW TIMESLOT VASTGELEGD OM 16u00. CHFF HEEFT VERTRAGING OPGELOPEN DMV DRUK WACHTTIJDEN OP LOSPLAATS, DRUK VERKEER.	1	7
+4222	T65368670	4	5	2016-10-20 15:02:53.0000000	2016-10-20 15:02:57.0000000	NULL	2016-10-20 15:02:55.0000000	MA	2016-10-13 11:06:29.0000000	MA	2016-10-20 15:02:57.7700000	NULL	NULL	WPR71856	NULL	NULL	1	MA.WE	NULL	0	NULL
+28644	80099546 b	8	4	2016-10-24 13:20:00.0000000	2016-10-24 14:30:00.0000000	2016-10-21 16:33:42.0000000	2016-10-21 16:35:27.0000000	ELFI	2016-10-21 15:49:10.0000000	PGALAND	2016-10-24 14:38:22.1800000	2016-10-24 14:00:00.0000000	NULL	23-BGP-8 // ON-21-RT	NULL	NULL	299	DE RIJKE // 24-10-2016 // 13u20 - 14u30	NULL	1	7
+
+161109
+
+trimStocks2 on vmg prod:
+
+(2285 row(s) affected)
+
+(2292 row(s) affected)
+
+(11 row(s) affected)
+
+(12 row(s) affected)
+
+(63158 row(s) affected)
+
+update STOCK_INFO set STOCK_INFO_CONFIG_ID = 1872056 where STOCK_INFO_ID in (2066354, 2066367) -- was 1871634
+update STOCK_INFO set STOCK_INFO_CONFIG_ID = 1728656 where STOCK_INFO_ID in (1641789, 1664228) -- was 1483041
+
+fixes on vln prod:
+update STOCK_INFO set STOCK_INFO_CONFIG_ID = 52084 where STOCK_INFO_ID in (63149, 64080) -- was 55510
+
+remaining
+--update STOCK_INFO set STOCK_INFO_CONFIG_ID = 94151 where STOCK_INFO_ID = 104295 -- was 94158
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31460 where STOCK_INFO_QUANTITY_ID = 203342
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31200 where STOCK_INFO_QUANTITY_ID = 203358
+
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31460 where STOCK_INFO_QUANTITY_ID = 203345
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31200 where STOCK_INFO_QUANTITY_ID = 203361
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31200 where STOCK_INFO_QUANTITY_ID = 257367
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31200 where STOCK_INFO_QUANTITY_ID = 257381
+--update STOCK_INFO_QUANTITY set QUANTITY = QUANTITY + 31200 where STOCK_INFO_QUANTITY_ID = 257408
+
+--exec [UpdateCustomsStockKey];
+
++ rebuild indexes
+
+
+select 
+  --REPLACE( sic._KEY_, SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)), UPPER(SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)))),
+ * from STOCK s join STOCK_INFO si on s.STOCK_INFO_ID = si.STOCK_INFO_ID join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+where /* s.STOCK_ID != 296723 and */ SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)) != UPPER(SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)))
+
+--select 
+-- sic.* into bak_STOCK_INFO_CONFIG from STOCK s join STOCK_INFO si on s.STOCK_INFO_ID = si.STOCK_INFO_ID join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+--where SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)) != UPPER(SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)))
+
+update sic set 
+	_KEY_ = REPLACE( sic._KEY_, SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)), UPPER(SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)))),
+	HASH_KEY = CAST(hashbytes('SHA1', REPLACE( sic._KEY_, SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)), UPPER(SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_))))) AS BINARY(20))
+from STOCK s join STOCK_INFO si on s.STOCK_INFO_ID = si.STOCK_INFO_ID join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+where SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)) != UPPER(SUBSTRING (sic._KEY_,  CHARINDEX(',"S":[', sic._KEY_), len(sic._KEY_)))
+
+--Update FINANCIAL_DOCUMENT
+--set JOURNAL_ID = NULL,
+--SEQUENCE = NULL,
+--STATUS = 0,
+--BOOKING_DATE = NULL,
+--IS_PRINTED = 0,
+--SEQUENCE_WITH_MOD = NULL
+--where FINANCIAL_DOCUMENT_ID = 1108
+
+--update FINANCIAL_DOCUMENT
+--set SEQUENCE = 161008,
+--SEQUENCE_WITH_MOD =161008 
+--where FINANCIAL_DOCUMENT_ID = 1108
+
+select * from FINANCIAL_DOCUMENT where FINANCIAL_DOCUMENT_ID = 1108
+--update ORDERS set STATUS=1 where ORDER_ID = 1967
+
+select o.INTERNAL_COMPANY_ID as ORDER_IC, car.INTERNAL_COMPANYNR as APP_ROLE_IC,
+	oper.INTERNAL_COMPANY_ID as OPER_IC, sic.INTERNAL_COMPANY_ID as SIC_IC, pic.INT_COMPANYNR as PRODUCT_IC,
+	* from ORDERS o join ORDER_ITEM oi on o.ORDER_ID = oi.ORDER_ID and o.ORDER_ID = 21890
+	join COMPANY_APPLICATION_ROLE car on o.CUSTOMER_ID = car.COMPANYNR
+	join OPERATION oper on oi.OPERATION_ID = oper.OPERATION_ID
+	join LOADING_ORDER_ITEM_GOOD loig on loig.LOADING_ORDER_ITEM_ID = oi.ORDER_ITEM_ID
+	join STOCK_INFO si on loig.STOCK_INFO_ID = si.STOCK_INFO_ID
+	join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+	join PRODUCT_INT_COMPANY pic on sic.PRODUCT_ID = pic.PRODUCT_ID
