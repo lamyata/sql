@@ -17,7 +17,7 @@ AS
 		set @valueStart = @start + LEN(@startTag);
 		set @valueEnd = CHARINDEX(@endTag, @key, @valueStart);
 
-		return STUFF(@key, @valueStart, @valueEnd-@valueStart, @newValue);
+		return STUFF(@key, @valueStart, @valueEnd-@valueStart-len(@endTag), @newValue);
 
     END
 
@@ -78,8 +78,12 @@ update sic set
 	UPDATE_TIMESTAMP = GETDATE(),
 	UPDATE_USER = 'la161027'
 	FROM STOCK_INFO_CONFIG sic WHERE ...
-		
-		
+update STOCK_INFO_SID set
+	[VALUE] = @NewExternalId,
+	UPDATE_TIMESTAMP = GETDATE(),
+	UPDATE_USER = 'la161027'
+	WHERE ...
+
 print 'Updating LOT of SICs';
 update STOCK_INFO_CONFIG set
 	_KEY_ = dbo.SetKeyValue (_KEY_, '"LOT":"', '"', LOT),

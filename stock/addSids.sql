@@ -1,0 +1,53 @@
+-- delete product sids with operation type 'Additional'
+delete psot from PRODUCT_SID_OPERATION_TYPE psot join OPERATION_TYPE ot on psot.OPERATION_TYPE_ID = ot.OPERATION_TYPE_ID and ot.[DESCRIPTION] = 'Additional'
+
+-- add sids
+declare @updateUser nvarchar(15) = 'la161122';
+declare @productGroupCode char(5) = 'EXP'
+
+insert into PRODUCT_STORAGE_IDENTIFIER (PRODUCT_ID, SID_ID, SID_SEQUENCE, IS_MANDATORY, CREATE_USER, CREATE_TIMESTAMP, UPDATE_USER, UPDATE_TIMESTAMP)
+	select pgp.PRODUCT_ID, si.STORAGE_IDENTIFIER_ID, 500, 0, @updateUser, GETDATE(), @updateUser, GETDATE() 
+	from PRODUCT_GROUP_PRODUCT pgp, PRODUCT_GROUP pg, STORAGE_IDENTIFIER si
+	where pgp.PRODUCT_GROUP_ID = pg.PRODUCT_GROUP_ID and pg.CODE = @productGroupCode and si.CODE = 'DOCT'
+insert into PRODUCT_STORAGE_IDENTIFIER (PRODUCT_ID, SID_ID, SID_SEQUENCE, IS_MANDATORY, CREATE_USER, CREATE_TIMESTAMP, UPDATE_USER, UPDATE_TIMESTAMP)
+	select pgp.PRODUCT_ID, si.STORAGE_IDENTIFIER_ID, 510, 0, @updateUser, GETDATE(), @updateUser, GETDATE() 
+	from PRODUCT_GROUP_PRODUCT pgp, PRODUCT_GROUP pg, STORAGE_IDENTIFIER si
+	where pgp.PRODUCT_GROUP_ID = pg.PRODUCT_GROUP_ID and pg.CODE = @productGroupCode and si.CODE = 'DNR'
+
+insert into PRODUCT_SID_SID_VALUE (PRODUCT_SID_ID, PREDEFINED_SID_VALUE_ID)
+	select psi.PRODUCT_STORAGE_IDENTIFIER_ID, sipv.STORAGE_IDENTIFIER_PR_VALUE_ID
+	from PRODUCT_STORAGE_IDENTIFIER psi, STORAGE_IDENTIFIER_PR_VALUE sipv,
+		PRODUCT_GROUP_PRODUCT pgp, PRODUCT_GROUP pg, STORAGE_IDENTIFIER si
+	where psi.PRODUCT_ID = pgp.PRODUCT_ID and pgp.PRODUCT_GROUP_ID = pg.PRODUCT_GROUP_ID and pg.CODE = @productGroupCode
+		and psi.SID_ID=si.STORAGE_IDENTIFIER_ID and si.CODE in ('DOCT', 'DNR')
+		and sipv.SID_ID = psi.SID_ID
+
+INSERT INTO [dbo].[PRODUCT_SID_OPERATION_TYPE]
+		([PRODUCT_SID_ID]
+		,[OPERATION_TYPE_ID])
+	SELECT
+		psi.PRODUCT_STORAGE_IDENTIFIER_ID,
+		ot.OPERATION_TYPE_ID
+	FROM PRODUCT_STORAGE_IDENTIFIER psi, PRODUCT_GROUP_PRODUCT pgp, PRODUCT_GROUP pg, STORAGE_IDENTIFIER si, OPERATION_TYPE ot
+	WHERE psi.PRODUCT_ID = pgp.PRODUCT_ID and pgp.PRODUCT_GROUP_ID = pg.PRODUCT_GROUP_ID and pg.CODE = @productGroupCode
+		and psi.SID_ID=si.STORAGE_IDENTIFIER_ID and si.CODE in ('DOCT', 'DNR')
+		and ot.[DESCRIPTION] != 'Additional'
+
+insert into STOCK_INFO_SID (SID_ID, STOCK_INFO_CONFIG_ID, VALUE, CREATE_USER, CREATE_TIMESTAMP, UPDATE_USER, UPDATE_TIMESTAMP)
+	select psi.SID_ID, sic.STOCK_INFO_CONFIG_ID, null, @updateUser, GETDATE(), @updateUser, GETDATE()
+	from STORAGE_IDENTIFIER si, PRODUCT_STORAGE_IDENTIFIER psi, STOCK_INFO_CONFIG sic, PRODUCT_GROUP_PRODUCT pgp, PRODUCT_GROUP pg
+	where pgp.PRODUCT_ID = psi.PRODUCT_ID and psi.SID_ID = si.STORAGE_IDENTIFIER_ID and si.CODE in ('DOCT', 'DNR')
+		and pgp.PRODUCT_ID = sic.PRODUCT_ID and pgp.PRODUCT_GROUP_ID = pg.PRODUCT_GROUP_ID and pg.CODE = @productGroupCode
+
+-- after the script is run recalc keys for productgrup = 10 ('EXP')
+-- after that rebuild stock and reservations indexes
+		
+--select * from PRODUCT_SID_OPERATION_TYPE psot join OPERATION_TYPE ot on psot.OPERATION_TYPE_ID = ot.OPERATION_TYPE_ID and ot.[DESCRIPTION] = 'Additional'
+--select top 333 * from STOCK_INFO_CONFIG order by UPDATE_TIMESTAMP desc
+--select sic.* from STOCK_INFO_SID sis join STOCK_INFO_CONFIG sic on sis.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID and sis.UPDATE_USER = 'la161121'
+--select * from STOCK_INFO_SID where UPDATE_USER = 'la161121' order by 3
+--select * from STOCK_INFO_SID where VALUE is null
+--select * from STOCK_INFO_CONFIG sic join PRODUCT_GROUP_PRODUCT pgp on sic.PRODUCT_ID = pgp.PRODUCT_ID and pgp.PRODUCT_GROUP_ID = 10
+--(204 row(s) affected)
+--(204 row(s) affected)
+--(1224 row(s) affected)

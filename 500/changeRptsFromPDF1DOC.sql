@@ -1,0 +1,1 @@
+update DW_REPORT set ORIGINAL_FILE = 1 where REPORT_KEY in ('CMRCRI', 'CMRShipTo')

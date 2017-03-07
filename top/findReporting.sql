@@ -1,13 +1,6 @@
--- rep info 1
-declare @OperationReportId int = 5243
-select STOCK_CHANGE_OPERATION_REPORT_ID, 'SC' as [TYPE] from STOCK_CHANGE_OPERATION_REPORT where STOCK_CHANGE_OPERATION_REPORT_ID = @OperationReportId
-union select LOADING_OPERATION_REPORT_ID, 'LD' from LOADING_OPERATION_REPORT where LOADING_OPERATION_REPORT_ID = @OperationReportId
-union select DISCHARGING_OPERATION_REPORT_ID, 'DC' from DISCHARGING_OPERATION_REPORT where DISCHARGING_OPERATION_REPORT_ID = @OperationReportId
-union select VAS_OPERATION_REPORT_ID, 'VAS' from VAS_OPERATION_REPORT where VAS_OPERATION_REPORT_ID = @OperationReportId
-
--- rep info 2
+-- rpt info
 select rpt.RPT_ID, rpt.[TYPE], rpt.TRANSPORT_ID as TR_ID, rpt.INVENTORY_STATUS as I_ST,
-	case rpt.INVENTORY_STATUS when 0 then 'Open' when 1 then 'Pending' when 2 then 'Done' end as I_STATUS,
+	case rpt.INVENTORY_STATUS when 0 then 'Open' when 1 then 'Pending-Complete' when 2 then 'Done' when 3 then 'Pending-Reopen' end as InvStatus,
 	rpt.STOCK_INVENTORY_REQUEST_ID as SIR_ID,
 	r.ORDER_ITEM_ID as OI_ID, r.[STATUS] as ST,
 	case r.[STATUS] when 0 then 'Open' when 1 then 'Processing' when 2 then 'Completed' when 3 then 'Closed' end as [STATUS],
@@ -27,7 +20,47 @@ join STOCK_INFO_CONFIG sic on sic.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID
 join STOCK_INFO_QUANTITY siq on si.BASE_QUANTITY_ID = siq.STOCK_INFO_QUANTITY_ID
 --join STOCK_INFO_SID sis on sis.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID and sis.SID_ID = 23 and sis.VALUE = '8062450'
 left join STOCK_INFO_QUANTITY siqSt on si.STORAGE_QUANTITY_ID = siqSt.STOCK_INFO_QUANTITY_ID
-where rpt.RPT_ID in (427112, 495837)
+where rpt.RPT_ID in (1966)
+
+-- inventory
+select s.*, b_siq.QUANTITY,
+	stuff((select ', ' + cast(siq1.MEASUREMENT_UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = s.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs,
+	sic._KEY_
+from STOCK s
+inner join STOCK_INFO si on si.STOCK_INFO_ID = s.STOCK_INFO_ID
+inner join STOCK_INFO_CONFIG sic on sic.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID
+inner join STOCK_INFO_QUANTITY b_siq on si.BASE_QUANTITY_ID = b_siq.STOCK_INFO_QUANTITY_ID
+--join STOCK_INFO_SID sis on sis.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID and sis.SID_ID = 4 and sis.VALUE = 'A077456'
+where sic.INTERNAL_COMPANY_ID = 299
+and sic.OWNER_ID = 298
+and sic.PRODUCT_ID = 3684
+and sic.LOCATION_ID = 1858
+and sic.TRACKING_NUMBER = '20160601'
+and sic.LOT = '1597860'
+--and sic.INVENTORY_NUMBER = '00546000218368200007'
+order by s.OPERATIONAL_DATE, s.UPDATE_TIMESTAMP asc
+
+-- sir log
+select sir.*, siri.*, sic._KEY_, siq.QUANTITY,
+	stuff((select ', ' + cast(siq1.MEASUREMENT_UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = siri.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs
+from STOCK_INVENTORY_REQUEST_ITEM siri 
+inner join STOCK_INFO si on siri.STOCK_INFO_ID = si.STOCK_INFO_ID
+inner join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+inner join STOCK_INVENTORY_REQUEST sir on siri.REQUEST_ID = sir.STOCK_INVENTORY_REQUEST_ID
+inner join STOCK_INFO_QUANTITY siq on si.BASE_QUANTITY_ID = siq.STOCK_INFO_QUANTITY_ID
+--join STOCK_INFO_SID sis on sis.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID and sis.SID_ID = 4 and sis.VALUE = 'A077456'
+where sic.INTERNAL_COMPANY_ID = 299
+and sic.OWNER_ID = 298
+and sic.PRODUCT_ID = 3684
+and sic.LOCATION_ID = 1858
+and sic.LOT = '1597860'
+and sic.TRACKING_NUMBER = '20160601'
+--and sic.INVENTORY_NUMBER = '00546000218368200007'
+order by sir.OPERATIONAL_DATE, sir.UPDATE_TIMESTAMP asc
+
+
+
+
 
 -- update reporting and T and OI (reopen OI)
 update OPERATION_REPORT set STATUS = STATUS - 1 where ORDER_ITEM_ID in (6234)
@@ -293,7 +326,7 @@ union select STOCK_CHANGE_OPERATION_REPORT_ID, 'Stock-change', sci.FROM_ID, '', 
 join OPERATION_REPORT r on rpt.RPT_ID = r.OPERATION_REPORT_ID and rpt.STOCK_INVENTORY_REQUEST_ID = 359531
 left join ORDER_ITEM oi on r.ORDER_ITEM_ID = oi.ORDER_ITEM_ID
 
--- repoen all order 
+-- reopen all order 
 declare @OrderId int = 1674
 update oi set STATUS = 2 from ORDER_ITEM oi where ORDER_ID in (@OrderId)
 update DISCHARGING_ORDER_ITEM set CUSTOMS_STATUS = 0 from DISCHARGING_ORDER_ITEM doi join ORDER_ITEM oi
@@ -335,3 +368,12 @@ and sic.TRACKING_NUMBER is null
 and sic.INVENTORY_NUMBER is null
 and sic.LOT = '1604812 - Interfert'
 order by cir.OPERATIONAL_DATE, cir.UPDATE_TIMESTAMP asc
+
+-- fix completion date
+declare @OrderItemId int = 44874
+declare @CompletionDate datetime = (select max(UPDATE_TIMESTAMP) from OPERATION_REPORT where ORDER_ITEM_ID = @OrderItemId)
+update ORDER_ITEM set COMPLETION_DATE = @CompletionDate where ORDER_ITEM_ID = @OrderItemId
+
+-- fix exch rate
+update FINANCIAL_LINE set EXCHANGE_RATE = 1, UPDATE_USER = 'sys170222', UPDATE_TIMESTAMP = getdate()
+ where EXCHANGE_RATE != 1 and abs(EXCHANGE_RATE -1) < .1

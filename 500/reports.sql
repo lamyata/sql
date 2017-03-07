@@ -1,0 +1,45 @@
+-- reports compact
+select
+	r.REPORT_KEY,
+	STUFF((SELECT ', ' + [DESCRIPTION] FROM DW_LAYOUT WHERE REPORT_ID = r.REPORT_ID FOR XML PATH ('')), 1, 2, '') as LAYOUTS,
+	STUFF((SELECT ', ' + c.CONTEXT FROM DW_REPORT_CONTEXT c JOIN DW_REPORT_REP_CONTEXT rc on c.REPORT_CONTEXT_ID = rc.REPORT_CONTEXT_ID WHERE rc.REPORT_ID = r.REPORT_ID FOR XML PATH ('')), 1, 2, '') as CONTEXTS,
+	ISNULL(s.SWITCH_DESCRIPTION, '') as SWITCH_DESCR,
+	case s.INT_COMP_DEPENDENT when 0 then 'No' when 1 then 'Yes' else '' end as IC_DEPENDANT,
+	ISNULL(STUFF ((SELECT ', ' + c.CODE FROM DW_SWITCH_INT_COMP sic join COMPANY c on sic.INTERNAL_COMPANY_ID = c.COMPANY_ID and SWITCH_ID = s.SWITCH_ID FOR XML PATH ('')), 1, 2, ''), '') as SWITCH_ICs,
+	case r.ORIGINAL_FILE when 0 then 'PDF' when 1 then 'DOC' when 2 then 'XLS' end as FILE_TYPE
+from DW_REPORT r left join DW_SWITCH s on r.REPORT_ID = s.REPORT_ID
+order by 1
+
+select
+	r.REPORT_KEY,
+	STUFF((SELECT ', ' + [DESCRIPTION] FROM DW_LAYOUT WHERE REPORT_ID = r.REPORT_ID FOR XML PATH ('')), 1, 2, '') as LAYOUTS,
+	STUFF((SELECT ', ' + c.CONTEXT FROM DW_REPORT_CONTEXT c JOIN DW_REPORT_REP_CONTEXT rc on c.REPORT_CONTEXT_ID = rc.REPORT_CONTEXT_ID WHERE rc.REPORT_ID = r.REPORT_ID FOR XML PATH ('')), 1, 2, '') as CONTEXTS,
+	ISNULL(s.SWITCH_DESCRIPTION, '') as SWITCH_DESCR,
+	case s.INT_COMP_DEPENDENT when 0 then 'No' when 1 then 'Yes' else '' end as IC_DEPENDANT,
+	ISNULL(c.CONTEXT, '')  as SWITCH_CONTEXT,
+	ISNULL(cmp.CODE, '') as SWITCH_IC,
+	case r.ORIGINAL_FILE when 0 then 'PDF' when 1 then 'DOC' when 2 then 'XLS' end as FILE_TYPE
+from DW_REPORT r left join DW_SWITCH s on r.REPORT_ID = s.REPORT_ID
+	left join DW_REPORT_CONTEXT c on s.REPORT_CONTEXT_ID = c.REPORT_CONTEXT_ID
+	left join DW_SWITCH_INT_COMP sic on sic.SWITCH_ID = s.SWITCH_ID
+	left join COMPANY cmp on sic.COMPANYNR = cmp.COMPANYNR
+order by 1
+
+-- reports 3
+select
+	r.REPORT_KEY,
+	STUFF((SELECT ', ' + [DESCRIPTION] FROM DW_LAYOUT WHERE REPORT_ID = r.REPORT_ID FOR XML PATH ('')), 1, 2, '') as LAYOUTS,
+	c.CONTEXT,
+	ISNULL(s.SWITCH_DESCRIPTION, '') as SWITCH_DESCR,
+	case s.INT_COMP_DEPENDENT when 0 then 'No' when 1 then 'Yes' else '' end as IC_DEPENDANT,
+	ISNULL(c.CONTEXT, '')  as SWITCH_CONTEXT,
+	ISNULL(cmp.CODE, '') as SWITCH_IC,
+	case r.ORIGINAL_FILE when 0 then 'PDF' when 1 then 'DOC' when 2 then 'XLS' end as FILE_TYPE
+from DW_REPORT r
+	join DW_REPORT_REP_CONTEXT rc on r.REPORT_ID = rc.REPORT_ID
+	join DW_REPORT_CONTEXT c on rc.REPORT_CONTEXT_ID = c.REPORT_CONTEXT_ID
+	left join DW_SWITCH s on r.REPORT_ID = s.REPORT_ID
+	left join DW_REPORT_CONTEXT sw_c on sw_c.REPORT_CONTEXT_ID = c.REPORT_CONTEXT_ID
+	left join DW_SWITCH_INT_COMP sic on sic.SWITCH_ID = s.SWITCH_ID
+	left join COMPANY cmp on sic.COMPANYNR = cmp.COMPANYNR
+order by 1

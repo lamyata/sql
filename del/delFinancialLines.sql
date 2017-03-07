@@ -6,3 +6,81 @@ update d set d.TI_ID = fl.TARIFF_INFO_ID from @deletedIds d join FINANCIAL_LINE 
 delete lfl from LOCATION_FINANCIAL_LINE lfl join @deletedIds d on lfl.FINANCIAL_LINE_ID = d.FL_ID
 delete fl from FINANCIAL_LINE fl join @deletedIds d on fl.FINANCIAL_LINE_ID = d.FL_ID
 delete ti from TARIFF_INFO ti join @deletedIds d on ti.TARIFF_INFO_ID = d.TI_ID
+
+-------delete financial lines from order items
+select * from ORDER_ITEM_FINANCIAL_LINE where ORDER_ITEM_ID in ( 11313, 11315, 11316 )
+select * from OPERATION_REPORT_FINANCIAL_LINE orfl join OPERATION_REPORT rpt on orfl.OPERATION_REPORT_ID = rpt.OPERATION_REPORT_ID and rpt.ORDER_ITEM_ID in ( 11313, 11315, 11316 )
+--	join FINANCIAL_LINE_LINE fll on orfl.FINANCIAL_LINE_ID = fll.CHILD_FINANCIAL_LINE_ID -- join to FLL to make sure fls have not been added to invoices - should return no lines
+
+declare @deleteIds table (FL_ID int, TI_ID int)
+insert into @deleteIds (FL_ID) select orfl.FINANCIAL_LINE_ID
+from OPERATION_REPORT_FINANCIAL_LINE orfl join OPERATION_REPORT rpt on orfl.OPERATION_REPORT_ID = rpt.OPERATION_REPORT_ID and rpt.ORDER_ITEM_ID in ( 11313, 11315, 11316 )
+update d set d.TI_ID = fl.TARIFF_INFO_ID from @deleteIds d join FINANCIAL_LINE fl on d.FL_ID = fl.FINANCIAL_LINE_ID;
+
+delete oifl from ORDER_ITEM_FINANCIAL_LINE oifl join @deleteIds d on oifl.FINANCIAL_LINE_ID = d.FL_ID
+delete orfl from OPERATION_REPORT_FINANCIAL_LINE orfl join @deleteIds d on orfl.FINANCIAL_LINE_ID = d.FL_ID
+delete lfl from LOCATION_FINANCIAL_LINE lfl join @deleteIds d on lfl.FINANCIAL_LINE_ID = d.FL_ID
+delete fl from FINANCIAL_LINE fl join @deleteIds d on fl.FINANCIAL_LINE_ID = d.FL_ID
+delete ti from TARIFF_INFO ti join @deleteIds d on ti.TARIFF_INFO_ID = d.TI_ID
+
+--- dump financial line info
+declare @deleteIds table (FL_ID int, TI_ID int)
+insert into @deleteIds (FL_ID) values (22111)
+update d set d.TI_ID = fl.TARIFF_INFO_ID from @deleteIds d join FINANCIAL_LINE fl on d.FL_ID = fl.FINANCIAL_LINE_ID
+
+select * from FINANCIAL_LINE_LINE fll join @deleteIds d on fll.CHILD_FINANCIAL_LINE_ID = d.FL_ID
+select * from ORDER_ITEM_FINANCIAL_LINE oifl join @deleteIds d on oifl.FINANCIAL_LINE_ID = d.FL_ID
+select * from OPERATION_REPORT_FINANCIAL_LINE orfl join @deleteIds d on orfl.FINANCIAL_LINE_ID = d.FL_ID
+select * from LOCATION_FINANCIAL_LINE lfl join @deleteIds d on lfl.FINANCIAL_LINE_ID = d.FL_ID
+select * from FINANCIAL_LINE fl join @deleteIds d on fl.FINANCIAL_LINE_ID = d.FL_ID
+select * from TARIFF_INFO ti join @deleteIds d on ti.TARIFF_INFO_ID = d.TI_ID
+
+--- del financial lines
+declare @deleteIds table (FL_ID int, TI_ID int)
+insert into @deleteIds (FL_ID) values (22110)
+update d set d.TI_ID = fl.TARIFF_INFO_ID from @deleteIds d join FINANCIAL_LINE fl on d.FL_ID = fl.FINANCIAL_LINE_ID
+
+BEGIN TRY
+	BEGIN TRANSACTION
+
+delete oifl from ORDER_ITEM_FINANCIAL_LINE oifl join @deleteIds d on oifl.FINANCIAL_LINE_ID = d.FL_ID
+delete orfl from OPERATION_REPORT_FINANCIAL_LINE orfl join @deleteIds d on orfl.FINANCIAL_LINE_ID = d.FL_ID
+delete lfl from LOCATION_FINANCIAL_LINE lfl join @deleteIds d on lfl.FINANCIAL_LINE_ID = d.FL_ID
+delete fl from FINANCIAL_LINE fl join @deleteIds d on fl.FINANCIAL_LINE_ID = d.FL_ID
+delete ti from TARIFF_INFO ti join @deleteIds d on ti.TARIFF_INFO_ID = d.TI_ID
+
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0
+		ROLLBACK TRANSACTION
+		SELECT ERROR_NUMBER() as ErrorNumber, ERROR_MESSAGE() as ErrorMessage
+END CATCH
+GO
+
+--- del financial lines for invoice
+declare @FinancialDocumentId int = 2062
+declare @deleteIds table (FL_ID int, TI_ID int)
+insert into @deleteIds (FL_ID) select FINANCIAL_LINE_ID from FINANCIAL_LINE where FINANCIAL_DOCUMENT_ID = @FinancialDocumentId
+insert into @deleteIds (FL_ID) select CHILD_FINANCIAL_LINE_ID from FINANCIAL_LINE_LINE fll join FINANCIAL_LINE fl on fll.FINANCIAL_LINE_ID = fl.FINANCIAL_LINE_ID
+	and fl.FINANCIAL_DOCUMENT_ID = @FinancialDocumentId
+update d set d.TI_ID = fl.TARIFF_INFO_ID from @deleteIds d join FINANCIAL_LINE fl on d.FL_ID = fl.FINANCIAL_LINE_ID
+
+BEGIN TRY
+	BEGIN TRANSACTION
+
+delete fll from FINANCIAL_LINE_LINE fll join @deleteIds d on fll.FINANCIAL_LINE_ID = d.FL_ID
+delete oifl from ORDER_ITEM_FINANCIAL_LINE oifl join @deleteIds d on oifl.FINANCIAL_LINE_ID = d.FL_ID
+delete orfl from OPERATION_REPORT_FINANCIAL_LINE orfl join @deleteIds d on orfl.FINANCIAL_LINE_ID = d.FL_ID
+delete lfl from LOCATION_FINANCIAL_LINE lfl join @deleteIds d on lfl.FINANCIAL_LINE_ID = d.FL_ID
+delete fl from FINANCIAL_LINE fl join @deleteIds d on fl.FINANCIAL_LINE_ID = d.FL_ID
+delete ti from TARIFF_INFO ti join @deleteIds d on ti.TARIFF_INFO_ID = d.TI_ID
+
+	COMMIT TRANSACTION
+END TRY
+BEGIN CATCH
+	IF @@TRANCOUNT > 0
+		ROLLBACK TRANSACTION
+		SELECT ERROR_NUMBER() as ErrorNumber, ERROR_MESSAGE() as ErrorMessage
+END CATCH
+GO
