@@ -1,3 +1,17 @@
+-- select FLs
+select * from (
+select ORDER_ITEM_ID as ENT_ID, 'OI' as TYPE, FINANCIAL_LINE_ID from ORDER_ITEM_FINANCIAL_LINE
+union
+select OPERATION_REPORT_ID, 'RPT', FINANCIAL_LINE_ID from OPERATION_REPORT_FINANCIAL_LINE
+union
+select LOCATION_ID, 'L', FINANCIAL_LINE_ID from LOCATION_FINANCIAL_LINE
+union
+select TRANSPORT_ID, 'T', FINANCIAL_LINE_ID from TRANSPORT_FINANCIAL_LINE
+union
+select FINANCIAL_LINE_ID, 'PARENT', CHILD_FINANCIAL_LINE_ID from FINANCIAL_LINE_LINE
+) as FL
+where FL.FINANCIAL_LINE_ID in (127545, 118960)
+
 --select * from FINANCIAL_LINE_LINE where CHILD_FINANCIAL_LINE_ID in (5363, 5364, 10656, 10657)
 declare @deletedIds table (FL_ID int, TI_ID int)
 insert into @deletedIds (FL_ID) values (5353), (5354), (5355), (5356), (5357), (5358), (5359), (5360), (5361), (5362), (5363), (5364), (10656), (10657), (10672), (10673), (10684), (10685), (10658), (10659), (10660), (10661), (10662), (10663), (10664), (10665), (10666), (10674), (10675), (10676), (10677), (10678), (10679), (10680), (10686), (10687), (10688), (10689), (10690), (10691), (10692), (10693), (10694), (10695), (10696), (10697), (10294), (10296), (10698), (10699), (10719), (10720), (10733), (10735), (10295), (10297), (10298), (10299), (10300), (10301), (10302), (10303), (10304), (10305), (10306), (10307), (10308), (10700), (10701), (10702), (10703), (10704), (10705), (10706), (10707), (10708), (10709), (10710), (10721), (10722), (10723), (10724), (10725), (10726), (10727), (10728), (10729), (10730), (10731), (10734), (10736), (10737), (10738), (10739), (10740), (10741), (10742), (10743), (10744), (10745), (10746), (10747)
@@ -62,6 +76,7 @@ GO
 declare @FinancialDocumentId int = 2062
 declare @deleteIds table (FL_ID int, TI_ID int)
 insert into @deleteIds (FL_ID) select FINANCIAL_LINE_ID from FINANCIAL_LINE where FINANCIAL_DOCUMENT_ID = @FinancialDocumentId
+-- comment the following statement if you only want to detach the fls from the invoice w/o deleting them
 insert into @deleteIds (FL_ID) select CHILD_FINANCIAL_LINE_ID from FINANCIAL_LINE_LINE fll join FINANCIAL_LINE fl on fll.FINANCIAL_LINE_ID = fl.FINANCIAL_LINE_ID
 	and fl.FINANCIAL_DOCUMENT_ID = @FinancialDocumentId
 update d set d.TI_ID = fl.TARIFF_INFO_ID from @deleteIds d join FINANCIAL_LINE fl on d.FL_ID = fl.FINANCIAL_LINE_ID

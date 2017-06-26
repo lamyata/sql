@@ -262,3 +262,72 @@ insert into STOCK_INFO_SID (SID_ID, STOCK_INFO_CONFIG_ID, VALUE, CREATE_USER, CR
 		
 -- after the script is run recalc keys for product = 4247
 -- after that rebuild stock and reservations indexes
+
+
+---- Acho variant
+DECLARE @user nvarchar(15) = 'sys170223';
+DECLARE @productCode varchar(20) = 'BISPHENOL'
+DECLARE @productId int = ( select PRODUCT_ID from PRODUCT where CODE = @productCode );
+		
+DECLARE @poSidId INT = 
+(SELECT [STORAGE_IDENTIFIER_ID] FROM [dbo].[STORAGE_IDENTIFIER]
+WHERE CODE = 'PO')
+DECLARE @levSidId INT =
+(SELECT [STORAGE_IDENTIFIER_ID] FROM [STORAGE_IDENTIFIER]
+WHERE CODE = 'LEV')
+
+DECLARE @StockInfoConfigIds TABLE
+(  
+	[SIC_ID] INT NOT NULL,
+	[INV_NUM] NVARCHAR(250) NOT NULL
+)
+INSERT INTO @StockInfoConfigIds
+SELECT sic.[STOCK_INFO_CONFIG_ID], [INVENTORY_NUMBER] FROM [dbo].[STOCK_INFO_CONFIG] sic
+WHERE sic.[PRODUCT_ID] = @productId AND [INVENTORY_NUMBER] IN
+(SELECT [INVENTORY_NUMBER] FROM @InvNoPoLev) -- Only these inventory number which we look for
+
+DECLARE @CurrentSicId INT
+DECLARE @CurrentInvNumId NVARCHAR(250)
+DECLARE @poValue NVARCHAR(2000)
+DECLARE @levValue NVARCHAR(2000)
+
+DECLARE MyCursor CURSOR FOR  
+SELECT * FROM @StockInfoConfigIds
+
+OPEN MyCursor
+FETCH NEXT FROM MyCursor INTO @CurrentSicId, @CurrentInvNumId
+		
+WHILE @@FETCH_STATUS = 0  
+	BEGIN
+		-- Buff values to be inserted
+		SELECT TOP 1 @poValue = [PO], @levValue = [LEV]
+		FROM @InvNoPoLev
+		WHERE INVENTORY_NUMBER = @CurrentInvNumId
+
+		--Check if sids exist, if so update their values, else insert the values as new sids, same logic for both sids
+
+		-- Po
+		UPDATE [dbo].[STOCK_INFO_SID]
+		SET [VALUE] = @poValue
+		WHERE [STOCK_INFO_CONFIG_ID] = @CurrentSicId AND SID_ID = @poSidId
+		IF ((SELECT @@ROWCOUNT) = 0)
+		BEGIN
+			INSERT INTO [dbo].[STOCK_INFO_SID] ([SID_ID], [STOCK_INFO_CONFIG_ID], [VALUE], [CREATE_USER], [CREATE_TIMESTAMP], [UPDATE_USER], [UPDATE_TIMESTAMP])
+			VALUES (@poSidId, @CurrentSicId, @poValue ,@user, GETDATE(), @user, GETDATE())
+		END
+
+		-- Lev
+		UPDATE [dbo].[STOCK_INFO_SID]
+		SET [VALUE] = @levValue
+		WHERE [STOCK_INFO_CONFIG_ID] = @CurrentSicId AND SID_ID = @levSidId
+		IF ((SELECT @@ROWCOUNT) = 0)
+		BEGIN
+			INSERT INTO [dbo].[STOCK_INFO_SID] ([SID_ID], [STOCK_INFO_CONFIG_ID], [VALUE], [CREATE_USER], [CREATE_TIMESTAMP], [UPDATE_USER], [UPDATE_TIMESTAMP])
+			VALUES (@levSidId, @CurrentSicId, @levValue ,@user, GETDATE(), @user, GETDATE())
+		END
+
+		FETCH NEXT FROM MyCursor INTO @CurrentSicId, @CurrentInvNumId
+	END
+CLOSE MyCursor
+DEALLOCATE MyCursor
+
