@@ -24,7 +24,7 @@ where rpt.RPT_ID in (1966)
 
 -- inventory
 select s.*, b_siq.QUANTITY,
-	stuff((select ', ' + cast(siq1.MEASUREMENT_UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = s.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs,
+	stuff((select ', ' + cast(siq1.UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = s.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs,
 	sic._KEY_
 from STOCK s
 inner join STOCK_INFO si on si.STOCK_INFO_ID = s.STOCK_INFO_ID
@@ -35,14 +35,16 @@ where sic.INTERNAL_COMPANY_ID = 299
 and sic.OWNER_ID = 298
 and sic.PRODUCT_ID = 3684
 and sic.LOCATION_ID = 1858
+and sic.DATE_IN = '20170925'
 and sic.TRACKING_NUMBER = '20160601'
 and sic.LOT = '1597860'
 --and sic.INVENTORY_NUMBER = '00546000218368200007'
+and s.UPDATE_TIMESTAMP > getdate() - 30
 order by s.OPERATIONAL_DATE, s.UPDATE_TIMESTAMP asc
 
 -- sir log
 select sir.*, siri.*, sic._KEY_, siq.QUANTITY,
-	stuff((select ', ' + cast(siq1.MEASUREMENT_UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = siri.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs
+	stuff((select ', ' + cast(siq1.UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = siri.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs
 from STOCK_INVENTORY_REQUEST_ITEM siri 
 inner join STOCK_INFO si on siri.STOCK_INFO_ID = si.STOCK_INFO_ID
 inner join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
@@ -53,9 +55,11 @@ where sic.INTERNAL_COMPANY_ID = 299
 and sic.OWNER_ID = 298
 and sic.PRODUCT_ID = 3684
 and sic.LOCATION_ID = 1858
-and sic.LOT = '1597860'
+and sic.DATE_IN = '20170925'
 and sic.TRACKING_NUMBER = '20160601'
+and sic.LOT = '1597860'
 --and sic.INVENTORY_NUMBER = '00546000218368200007'
+--and sir.UPDATE_TIMESTAMP > getdate() - .2
 order by sir.OPERATIONAL_DATE, sir.UPDATE_TIMESTAMP asc
 
 
@@ -278,41 +282,6 @@ and (a.REQUEST_ID is null or a.REQUEST_STATUS != 4)
 --and a.OR_UPDATE_TIMESTAMP >= '2016-06-27'
 order by a.OR_UPDATE_TIMESTAMP desc
 
-select * from ORDER_ITEM where STATUS in (3, 4) and COMPLETION_DATE is null
-
--- inventory
-select s.*, b_siq.QUANTITY, sic._KEY_
-from STOCK s
-inner join STOCK_INFO si on si.STOCK_INFO_ID = s.STOCK_INFO_ID
-inner join STOCK_INFO_CONFIG sic on sic.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID
-inner join STOCK_INFO_QUANTITY b_siq on si.BASE_QUANTITY_ID = b_siq.STOCK_INFO_QUANTITY_ID
---join STOCK_INFO_SID sis on sis.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID and sis.SID_ID = 4 and sis.VALUE = 'A077456'
-where sic.INTERNAL_COMPANY_ID = 299
-and sic.OWNER_ID = 298
-and sic.PRODUCT_ID = 3684
-and sic.LOCATION_ID = 1858
-and sic.TRACKING_NUMBER = '20160601'
-and sic.LOT = '1597860'
---and sic.INVENTORY_NUMBER = '00546000218368200007'
-order by s.OPERATIONAL_DATE, s.UPDATE_TIMESTAMP asc
-
--- sir log
-select sir.*, siri.*, sic._KEY_, siq.QUANTITY
-from STOCK_INVENTORY_REQUEST_ITEM siri 
-inner join STOCK_INFO si on siri.STOCK_INFO_ID = si.STOCK_INFO_ID
-inner join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
-inner join STOCK_INVENTORY_REQUEST sir on siri.REQUEST_ID = sir.STOCK_INVENTORY_REQUEST_ID
-inner join STOCK_INFO_QUANTITY siq on si.BASE_QUANTITY_ID = siq.STOCK_INFO_QUANTITY_ID
---join STOCK_INFO_SID sis on sis.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID and sis.SID_ID = 4 and sis.VALUE = 'A077456'
-where sic.INTERNAL_COMPANY_ID = 299
-and sic.OWNER_ID = 298
-and sic.PRODUCT_ID = 3684
-and sic.LOCATION_ID = 1858
-and sic.LOT = '1597860'
-and sic.TRACKING_NUMBER = '20160601'
---and sic.INVENTORY_NUMBER = '00546000218368200007'
-order by sir.OPERATIONAL_DATE, sir.UPDATE_TIMESTAMP asc
-
 --update LOADING_OPERATION_REPORT set STOCK_INVENTORY_REQUEST_ID = 11791, INVENTORY_STATUS = INVENTORY_STATUS+1 where LOADING_OPERATION_REPORT_ID = 12893
 select * from ELMAH_Error where TimeUtc between '2016-08-17 8:10' and '2016-08-17 8:30'
 
@@ -339,7 +308,9 @@ update ORDERS set STATUS = 1 where ORDER_ID = @OrderId
 
 
 -- customs inventory
-select cs.*, b_siq.QUANTITY, sic._KEY_ from CUSTOMS_STOCK cs
+select cs.*, b_siq.QUANTITY,
+	stuff((select ', ' + cast(siq1.UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = cs.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs,
+sic._KEY_ from CUSTOMS_STOCK cs
 	join STOCK_INFO si on si.STOCK_INFO_ID = cs.STOCK_INFO_ID
 	join STOCK_INFO_CONFIG sic on sic.STOCK_INFO_CONFIG_ID = si.STOCK_INFO_CONFIG_ID
 	join STOCK_INFO_QUANTITY b_siq on si.BASE_QUANTITY_ID = b_siq.STOCK_INFO_QUANTITY_ID
@@ -353,8 +324,10 @@ and sic.INVENTORY_NUMBER is null
 and sic.LOT = '1604812 - Interfert'
 order by cs.DATE, cs.UPDATE_TIMESTAMP asc
 
--- customs inventory history
-select cir.*, ciri.*, sic._KEY_, siq.QUANTITY from CUSTOMS_INVENTORY_REQUEST_ITEM ciri
+-- customs inventory requests
+select cir.*, ciri.*, sic._KEY_, siq.QUANTITY,
+	stuff((select ', ' + cast(siq1.UNIT_ID as varchar) + ': ' + cast(siq1.QUANTITY as varchar) from STOCK_INFO_QUANTITY siq1 join STOCK_INFO_EXTRA_QUANTITY sieq on siq1.STOCK_INFO_QUANTITY_ID = sieq.STOCK_INFO_QUANTITY_ID and sieq.STOCK_INFO_ID = ciri.STOCK_INFO_ID for XML PATH('')), 1, 2, '') as ExtraQs
+from CUSTOMS_INVENTORY_REQUEST_ITEM ciri
 	join STOCK_INFO si on ciri.STOCK_INFO_ID = si.STOCK_INFO_ID
 	join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
 	join CUSTOMS_INVENTORY_REQUEST cir on ciri.REQUEST_ID = cir.CUSTOMS_INVENTORY_REQUEST_ID
@@ -367,6 +340,9 @@ and sic.LOCATION_ID = 9
 and sic.TRACKING_NUMBER is null
 and sic.INVENTORY_NUMBER is null
 and sic.LOT = '1604812 - Interfert'
+--and cir.CUSTOMS_INVENTORY_REQUEST_ID = 35692 -- can be taken from LOI
+--and cir.ENTITY_ID = 29314
+--and cir.CREATE_TIMESTAMP > getdate()-30
 order by cir.OPERATIONAL_DATE, cir.UPDATE_TIMESTAMP asc
 
 -- fix completion date
@@ -377,3 +353,63 @@ update ORDER_ITEM set COMPLETION_DATE = @CompletionDate where ORDER_ITEM_ID = @O
 -- fix exch rate
 update FINANCIAL_LINE set EXCHANGE_RATE = 1, UPDATE_USER = 'sys170222', UPDATE_TIMESTAMP = getdate()
  where EXCHANGE_RATE != 1 and abs(EXCHANGE_RATE -1) < .1
+ 
+-- insufficient quantity for stock with inventory number: aka double scan
+select oi.ORDER_ID, oi.SEQUENCE, * from LOADING_OPERATION_REPORT lor join STOCK_INFO si on lor.REPORTED_ID = si.STOCK_INFO_ID
+	join OPERATION_REPORT rpt on lor.LOADING_OPERATION_REPORT_ID = rpt.OPERATION_REPORT_ID
+	join ORDER_ITEM oi on rpt.ORDER_ITEM_ID = oi.ORDER_ITEM_ID
+	join STOCK_INFO_CONFIG sic on si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+	where sic.INVENTORY_NUMBER = '859400755419E' and rpt.STATUS in (0, 1, 2) and lor.INVENTORY_STATUS != 2
+	
+ 
+-- mitko's script --
+If(OBJECT_ID('tempdb..#PreparedGoodIds') IS NOT NULL)
+BEGIN
+   DROP TABLE #PreparedGoodIds
+END
+
+CREATE TABLE #PreparedGoodIds
+(
+    Id INT IDENTITY,
+    PrepGoodId INT,
+    GoodId INT,
+    PlanId INT
+)
+
+INSERT INTO #PreparedGoodIds (PrepGoodId, GoodId, PlanId) 
+SELECT pg.PREPARED_GOOD_ID, pg.GOOD_ID, pg.PREPARED_PLAN_ID 
+FROM PREPARED_GOOD pg
+INNER JOIN PICKING_LIST_PREPARED_GOOD plpg ON pg.PREPARED_GOOD_ID = plpg.PREPARED_GOOD_ID
+INNER JOIN PICKING_LIST pl ON plpg.PICKING_LIST_ID = pl.PICKING_LIST_ID
+JOIN ORDER_ITEM_PICKING_LIST oipl ON oipl.PICKING_LIST_ID = pl.PICKING_LIST_ID
+JOIN ORDER_ITEM oi ON oipl.ORDER_ITEM_ID = oi.ORDER_ITEM_ID
+JOIN STOCK_INFO si ON si.STOCK_INFO_ID = pg.GOOD_ID
+JOIN STOCK_INFO_CONFIG sic ON si.STOCK_INFO_CONFIG_ID = sic.STOCK_INFO_CONFIG_ID
+JOIN PRODUCT p ON sic.PRODUCT_ID = p.PRODUCT_ID
+WHERE pg.STATUS = 1 ORDER BY DATE
+
+--SELECT * FROM #PreparedGoodIds
+
+DECLARE @count INT = (SELECT COUNT(*) FROM #PreparedGoodIds)
+DECLARE @current INT = 1
+
+WHILE @current <= @count
+BEGIN
+    -- please replace prepGoodId and prepared good will be deleted
+    DECLARE @prepGoodId INT = (SELECT PrepGoodId FROM #PreparedGoodIds WHERE Id = @current)
+    DECLARE @goodId INT = (SELECT GoodId FROM #PreparedGoodIds WHERE Id = @current)
+    DECLARE @planId INT = (SELECT PlanId FROM #PreparedGoodIds WHERE Id = @current)
+    DECLARE @preparedId INT = (SELECT PREPARED_ID FROM LOADING_OPERATION_PLAN WHERE LOADING_OPERATION_PLAN_ID = @planId)
+
+    DELETE FROM PICKING_LIST_PREPARED_GOOD WHERE PREPARED_GOOD_ID = @prepGoodId
+    DELETE FROM PREPARED_GOOD WHERE PREPARED_GOOD_ID = @prepGoodId
+    EXEC DeleteStockInfo @goodId
+
+    UPDATE LOADING_OPERATION_PLAN SET PREPARED_ID = NULL WHERE LOADING_OPERATION_PLAN_ID = @planId
+    EXEC DeleteStockInfo @preparedId
+
+    SET @current = @current + 1
+END
+
+--https://www.scribd.com/doc/236742695/A-Wind-Turbine-Recipe-Book-metric-edition?secret_password=CRXWOONIfIN9yWbMgCiT#fullscreen&from_embed
+--https://www.scribd.com/document/362036104/alal

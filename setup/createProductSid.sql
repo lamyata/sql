@@ -13,9 +13,9 @@ begin
 
 set nocount on
 
-select @ProductId = PRODUCT_ID from WMS_PRODUCT where CODE like @ProductCode
-select @SidId = SID_ID from WMS_SID where CODE like @SidCode;
-INSERT INTO [dbo].[PRODUCT_STORAGE_IDENTIFIER_TEMP]
+select @ProductId = PRODUCT_ID from PRODUCT where CODE like @ProductCode
+select @SidId = STORAGE_IDENTIFIER_ID from STORAGE_IDENTIFIER where CODE like @SidCode;
+INSERT INTO [dbo].[PRODUCT_STORAGE_IDENTIFIER]
 		([PRODUCT_ID]
 		,[SID_ID]
 		,[SID_DEFAULT]
@@ -31,11 +31,20 @@ INSERT INTO [dbo].[PRODUCT_STORAGE_IDENTIFIER_TEMP]
 		,@SidDefault
 		,@SidSequence
 		,0
-		,'script'
+		,'la180222'
 		,getdate()
-		,'script'
+		,'la180222'
 		,getdate())
 select @ProductSidId = SCOPE_IDENTITY();
+
+INSERT INTO [dbo].[PRODUCT_SID_SID_VALUE]
+           ([PRODUCT_SID_ID]
+           ,[PREDEFINED_SID_VALUE_ID])
+     select
+           @ProductSidId
+           ,STORAGE_IDENTIFIER_PR_VALUE_ID
+     from STORAGE_IDENTIFIER_PR_VALUE
+	 where SID_ID = @SidId
 
 if CHARINDEX('L', @OperationTypes) > 0
 begin
@@ -71,9 +80,3 @@ end
 set nocount off
 
 end
-
-
-
-
-
-
